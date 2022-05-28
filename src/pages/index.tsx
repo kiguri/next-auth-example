@@ -1,9 +1,39 @@
-import type { NextPage } from 'next'
+import type { NextPage, GetServerSideProps } from 'next'
 import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import useSWR from 'swr'
+import { getSession } from 'next-auth/react'
 
-const Home: NextPage = () => {
+import { Hello } from '../components/Hello'
+
+import styles from '../styles/Home.module.css'
+import invariant from 'invariant'
+
+type Todo = {
+  userId: string
+  id: string
+  title: string
+  completed: boolean
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.json())
+
+const usePosts = () => {
+  const { data, error } = useSWR(
+    'https://jsonplaceholder.typicode.com/posts',
+    fetcher
+  )
+
+  return {
+    posts: data,
+    isLoading: !error && !data,
+    error,
+  }
+}
+
+const Home: NextPage<{ data: Todo }> = (props) => {
+  const { data } = props
+  const { posts, isLoading, error } = usePosts()
+
   return (
     <div className={styles.container}>
       <Head>
@@ -12,61 +42,37 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
+      {data.title}
+      <Hello />
     </div>
   )
+}
+
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const res = await fetch('https://jsonplaceholder.typicode.com/todos/1')
+  const data: Todo = await res.json()
+
+  const session = await getSession(context)
+
+  if (session) {
+    const { accessToken } = session
+    const BASE_URL = process.env.NEXT_PUBLIC_AUTH_URL
+    invariant(BASE_URL, 'API endpoint not configured')
+    // Use token here
+    const res = await fetch(`${BASE_URL}/members/me`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+
+    const user = await res.json()
+
+    console.log(user)
+  }
+
+  return {
+    props: { data },
+  }
 }
 
 export default Home
