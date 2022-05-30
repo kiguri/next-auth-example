@@ -1,5 +1,6 @@
-import { Session, User } from 'next-auth'
-import { JWT } from 'next-auth/jwt'
+import type { Session, User } from 'next-auth'
+import type { JWT } from 'next-auth/jwt'
+import type { NextComponentType, NextPageContext } from 'next'
 
 declare module 'next-auth' {
   interface Session {
@@ -22,5 +23,19 @@ declare module 'next-auth/jwt' {
     id: string
     email: string
     accessToken: string
+  }
+}
+
+declare module 'next/app' {
+  type AppProps<P = Record<string, unknown>> = {
+    Component: NextComponentType<NextPageContext, any, P> & {
+      auth: boolean
+    }
+    router: Router
+    __N_SSG?: boolean
+    __N_SSP?: boolean
+    pageProps: P & {
+      session: Session
+    }
   }
 }
